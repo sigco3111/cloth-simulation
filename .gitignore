@@ -15,9 +15,6 @@ build/
 .omo/
 .playwright-mcp/
 
-# Vercel
-.vercel/
-
 # Env
 .env
 .env.local
