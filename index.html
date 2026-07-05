@@ -1,11 +1,980 @@
 <!DOCTYPE html>
-<!-- Placeholder: MiniMax-M3 via OpenCode will replace this with the full Verlet cloth simulation. -->
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>cloth-simulation</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Velvet Cloth — Verlet Integration</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #0a0202;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #f0d0d0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    cursor: crosshair;
+    background: radial-gradient(ellipse at center, #1a0808 0%, #050202 80%);
+  }
+
+  /* ====== HUD (top-left) ====== */
+  #hud {
+    position: fixed;
+    top: 22px; left: 22px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #hud .title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: #e8a0a0;
+    margin-bottom: 4px;
+    opacity: 0.85;
+  }
+  #hud .subtitle {
+    font-size: 22px;
+    font-weight: 200;
+    letter-spacing: 0.04em;
+    color: #f0c8c8;
+    margin-bottom: 14px;
+    line-height: 1.1;
+  }
+  #hud .instructions {
+    font-size: 11px;
+    opacity: 0.55;
+    line-height: 1.7;
+    max-width: 220px;
+  }
+  #hud .instructions .key {
+    display: inline-block;
+    padding: 1px 6px;
+    margin: 0 2px;
+    background: rgba(220, 100, 100, 0.18);
+    border: 1px solid rgba(220, 100, 100, 0.35);
+    border-radius: 3px;
+    font-size: 10px;
+    color: #f0c8c8;
+    opacity: 0.9;
+  }
+
+  /* ====== Stats (top-right) ====== */
+  #stats {
+    position: fixed;
+    top: 22px; right: 22px;
+    z-index: 10;
+    pointer-events: none;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-align: right;
+    line-height: 1.9;
+    color: #d0a0a0;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+  }
+  #stats .stat-row { display: flex; gap: 8px; justify-content: flex-end; }
+  #stats .stat-label { opacity: 0.5; }
+  #stats .stat-value { min-width: 36px; text-align: right; color: #f0c8c8; opacity: 0.9; }
+
+  /* ====== Controls (bottom-left) ====== */
+  #controls {
+    position: fixed;
+    bottom: 22px; left: 22px;
+    z-index: 10;
+    background: rgba(20, 5, 5, 0.65);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(180, 60, 60, 0.22);
+    border-radius: 10px;
+    padding: 16px 18px;
+    min-width: 300px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 200, 200, 0.06);
+  }
+  #controls .section-title {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #e8a0a0;
+    opacity: 0.8;
+    margin-bottom: 12px;
+  }
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .ctrl-row:last-of-type { margin-bottom: 0; }
+  .ctrl-row label {
+    font-size: 11px;
+    color: #d0a0a0;
+    opacity: 0.85;
+    width: 64px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .ctrl-row input[type=range] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(180, 60, 60, 0.28);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .ctrl-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    background: #d04040;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #f0d0d0;
+    box-shadow: 0 0 8px rgba(208, 64, 64, 0.4);
+    transition: transform 0.15s;
+  }
+  .ctrl-row input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .ctrl-row input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    background: #d04040;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #f0d0d0;
+    box-shadow: 0 0 8px rgba(208, 64, 64, 0.4);
+  }
+  .ctrl-row .value {
+    font-size: 11px;
+    color: #f0c8c8;
+    opacity: 0.7;
+    min-width: 38px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ctrl-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(180, 60, 60, 0.18);
+  }
+  .ctrl-buttons button {
+    flex: 1;
+    padding: 9px 10px;
+    background: rgba(180, 60, 60, 0.12);
+    border: 1px solid rgba(180, 60, 60, 0.28);
+    color: #f0c8c8;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.18s ease;
+    font-family: inherit;
+  }
+  .ctrl-buttons button:hover {
+    background: rgba(220, 80, 80, 0.28);
+    border-color: rgba(240, 120, 120, 0.5);
+    color: #fff;
+  }
+  .ctrl-buttons button:active { transform: scale(0.97); }
+  .ctrl-buttons button.primary {
+    background: rgba(180, 60, 60, 0.28);
+    border-color: rgba(220, 100, 100, 0.45);
+  }
+
+  /* ====== Loading overlay ====== */
+  #boot {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0202;
+    color: #f0c8c8;
+    z-index: 100;
+    transition: opacity 0.5s;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    opacity: 1;
+  }
+  #boot.hidden { opacity: 0; pointer-events: none; }
+</style>
 </head>
 <body>
-  <p>Work in progress — OpenCode / MiniMax-M3 미션 대기 중</p>
+
+<canvas id="canvas"></canvas>
+
+<div id="hud">
+  <div class="title">Verlet Cloth</div>
+  <div class="subtitle">Red Velvet</div>
+  <div class="instructions">
+    <span class="key">DRAG</span> to grab a point<br>
+    <span class="key">PULL HARD</span> to tear the weave<br>
+    Adjust wind &amp; gravity below
+  </div>
+</div>
+
+<div id="stats">
+  <div class="stat-row"><span class="stat-label">FPS</span><span class="stat-value" id="statFps">—</span></div>
+  <div class="stat-row"><span class="stat-label">POINTS</span><span class="stat-value" id="statPoints">—</span></div>
+  <div class="stat-row"><span class="stat-label">LINKS</span><span class="stat-value" id="statConstraints">—</span></div>
+  <div class="stat-row"><span class="stat-label">TORN</span><span class="stat-value" id="statTorn">—</span></div>
+</div>
+
+<div id="controls">
+  <div class="section-title">Forces</div>
+  <div class="ctrl-row">
+    <label>Wind</label>
+    <input type="range" id="windSlider" min="0" max="100" value="90">
+    <span class="value" id="windValue">90</span>
+  </div>
+  <div class="ctrl-row">
+    <label>Gravity</label>
+    <input type="range" id="gravitySlider" min="0" max="200" value="100">
+    <span class="value" id="gravityValue">1.0</span>
+  </div>
+  <div class="ctrl-row">
+    <label>Tear</label>
+    <input type="range" id="tearSlider" min="120" max="500" value="220">
+    <span class="value" id="tearValue">220%</span>
+  </div>
+  <div class="ctrl-buttons">
+    <button id="unpinBtn">Drop</button>
+    <button id="repinBtn">Re-Pin</button>
+    <button id="resetBtn" class="primary">Reset</button>
+  </div>
+</div>
+
+<div id="boot">Initialising physics…</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   Velvet Cloth — Verlet Integration
+   ---------------------------------------------------------------------
+   * Verlet integrator with substepping for stability
+   * Jakobsen-style constraint relaxation (multiple iterations)
+   * Position-based mouse drag (snap + impulse)
+   * Wind: sinusoidal base + spatial gusts, time-varying direction
+   * Tearing: constraint deactivates when strain exceeds threshold
+   * Red velvet shading: anisotropic sheen + per-quad normal lighting
+   ===================================================================== */
+
+const CFG = Object.freeze({
+  // Cloth topology
+  cols: 32,
+  rows: 42,
+  spacing: 12,
+  pinEvery: 4,               // pin every Nth column on the top row
+
+  // Physics
+  damping: 0.975,            // velocity damping per frame
+  iterations: 3,             // constraint relaxation passes
+  stiffness: 0.75,           // per-iteration correction (0.75^3 = 0.42 → ~98% enforced — minimal stretch)
+  substeps: 2,               // physics substeps per frame (smoother dynamics, less overshoot)
+  maxDelta: 1 / 45,          // clamp frame dt for stability on slow frames
+
+  // Forces — tuned to keep cloth on-canvas at peak wind while still flapping
+  gravity: 900,              // px/s² downward
+  windBase: 420,             // baseline horizontal wind
+  windAmp: 500,              // wind amplitude
+  windFreq: 0.45,            // base wind frequency
+  windGustFreq: 0.65,        // gust frequency
+  windSpatialScale: 0.020,   // spatial wavelength of gusts (horizontal)
+  windVSpatial: 0.030,       // spatial wavelength of gusts (vertical)
+  windDirFreq: 0.50,         // wind direction reversal frequency (every ~3 sec)
+
+  // Tearing
+  tearMultiplier: 2.5,       // constraint breaks at 250% rest length
+
+  // Mouse
+  mouseRadius: 22,           // pick radius (px)
+  mouseSnapStrength: 0.55,   // per-substep snap factor
+  mouseForceStrength: 60,    // mouse pull force coefficient (stronger for snappier drag)
+
+  // Render
+  lightAngle: -Math.PI * 0.78,  // light direction (top-left)
+  renderStress: true,        // highlight near-tear constraints in red
+  renderVelvetNoise: true,   // overlay procedural velvet nap texture
+});
+
+/* =====================================================================
+   Canvas & DPR
+   ===================================================================== */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', () => { resize(); if (cloth) cloth.relayout(); });
+resize();
+
+/* =====================================================================
+   Physics — Point
+   ===================================================================== */
+
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.px = x;
+    this.py = y;
+    this.ax = 0;
+    this.ay = 0;
+    this.pinned = false;
+    this.mass = 1;
+    this._wasPinned = false;  // tracks original pin state across mouse grab
+  }
+  addForce(fx, fy) {
+    if (this.pinned) return;
+    this.ax += fx / this.mass;
+    this.ay += fy / this.mass;
+  }
+  integrate(dt) {
+    if (this.pinned) {
+      this.px = this.x;
+      this.py = this.y;
+      this.ax = 0;
+      this.ay = 0;
+      return;
+    }
+    const dt2 = dt * dt;
+    const vx = (this.x - this.px) * CFG.damping;
+    const vy = (this.y - this.py) * CFG.damping;
+    const nx = this.x + vx + this.ax * dt2;
+    const ny = this.y + vy + this.ay * dt2;
+    this.px = this.x;
+    this.py = this.y;
+    this.x = nx;
+    this.y = ny;
+    this.ax = 0;
+    this.ay = 0;
+    // Stability guard
+    if (!isFinite(this.x) || !isFinite(this.y)) {
+      this.x = this.px;
+      this.y = this.py;
+    }
+  }
+}
+
+/* =====================================================================
+   Physics — Constraint
+   ===================================================================== */
+
+class Constraint {
+  constructor(p1, p2, restLength) {
+    this.p1 = p1;
+    this.p2 = p2;
+    this.restLength = restLength;
+    this.active = true;
+    this.strain = 0;
+  }
+}
+
+/* =====================================================================
+   Physics — Cloth
+   ===================================================================== */
+
+class Cloth {
+  constructor() {
+    this.points = [];
+    this.constraints = [];
+    this.tornCount = 0;
+    this.tearMul = CFG.tearMultiplier;
+    this.build();
+  }
+
+  build() {
+    this.points = [];
+    const totalW = (CFG.cols - 1) * CFG.spacing;
+    const startX = Math.round((W - totalW) / 2);
+    const startY = 80;
+    for (let j = 0; j < CFG.rows; j++) {
+      const row = [];
+      for (let i = 0; i < CFG.cols; i++) {
+        const p = new Point(startX + i * CFG.spacing, startY + j * CFG.spacing);
+        // Pin all top-row points for a clean, straight top edge
+        if (j === 0) p.pinned = true;
+        row.push(p);
+      }
+      this.points.push(row);
+    }
+    this.constraints = [];
+    this.buildConstraints();
+  }
+
+  buildConstraints() {
+    const s = CFG.spacing;
+    for (let j = 0; j < CFG.rows; j++) {
+      for (let i = 0; i < CFG.cols; i++) {
+        const p = this.points[j][i];
+        // Structural only — horizontal + vertical neighbours
+        if (i < CFG.cols - 1) this.constraints.push(new Constraint(p, this.points[j][i + 1], s));
+        if (j < CFG.rows - 1) this.constraints.push(new Constraint(p, this.points[j + 1][i], s));
+      }
+    }
+  }
+
+  relayout() {
+    const totalW = (CFG.cols - 1) * CFG.spacing;
+    const startX = Math.round((W - totalW) / 2);
+    const startY = 80;
+    for (let j = 0; j < CFG.rows; j++) {
+      for (let i = 0; i < CFG.cols; i++) {
+        const p = this.points[j][i];
+        p.x = startX + i * CFG.spacing;
+        p.y = startY + j * CFG.spacing;
+        p.px = p.x;
+        p.py = p.y;
+      }
+    }
+  }
+
+  // Deterministic per-cloth perturbation — random offsets so the cloth starts in an
+  // organic non-equilibrium state (no regular wave pattern = no plastic corrugation)
+  perturb(strength) {
+    let s = 0xC10FB57D | 0;
+    function rand() {
+      s = (s + 0x6D2B79F5) | 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    for (let j = 0; j < CFG.rows; j++) {
+      for (let i = 0; i < CFG.cols; i++) {
+        const p = this.points[j][i];
+        if (p.pinned) continue;
+        // Pure random offset — organic drape, not regular ripples
+        const ox = (rand() - 0.5) * strength * 2;
+        const oy = (rand() - 0.5) * strength * 1.4;
+        p.x += ox; p.y += oy;
+        p.px = p.x; p.py = p.y;
+      }
+    }
+  }
+
+  step(dt, time, mouse) {
+    // 1. Accumulate forces (gravity + wind + mouse pull)
+    const g = CFG.gravity;
+    const wDir = Math.cos(time * CFG.windDirFreq) >= 0 ? 1 : -1;
+    const wBase = CFG.windBase + Math.sin(time * CFG.windFreq * Math.PI * 2) * CFG.windAmp * 0.45;
+    const gustFreqT = time * CFG.windGustFreq * Math.PI * 2;
+    for (let j = 0; j < CFG.rows; j++) {
+      for (let i = 0; i < CFG.cols; i++) {
+        const p = this.points[j][i];
+        p.addForce(0, g * p.mass);
+        // Wind: spatially-varying across the cloth (creates ripples, gusts, waves)
+        // Two orthogonal phase terms give a richer non-uniform pattern
+        const phaseH = p.x * CFG.windSpatialScale;
+        const phaseV = p.y * CFG.windVSpatial;
+        const gust = Math.sin(gustFreqT + phaseH + phaseV) * CFG.windAmp * 0.5 +
+                     Math.sin(gustFreqT * 1.73 + phaseH * 0.7 - phaseV * 1.1) * CFG.windAmp * 0.3;
+        const wx = (wBase + gust) * wDir;
+        p.addForce(wx * windScale, 0);
+        // Mouse drag — apply a soft spring force so grabbed point leads
+        if (mouse.grabbed === p) {
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          p.addForce(dx * CFG.mouseForceStrength, dy * CFG.mouseForceStrength);
+        }
+      }
+    }
+
+    // 2. Verlet integration
+    for (let j = 0; j < CFG.rows; j++) {
+      const row = this.points[j];
+      for (let i = 0; i < CFG.cols; i++) row[i].integrate(dt);
+    }
+
+    // 3. Mouse snap — pulled point chases cursor (positional)
+    if (mouse.grabbed) {
+      const s = CFG.mouseSnapStrength;
+      const g = mouse.grabbed;
+      g.x += (mouse.x - g.x) * s;
+      g.y += (mouse.y - g.y) * s;
+      g.px = g.x;
+      g.py = g.y;
+    }
+
+    // 4. Constraint relaxation (multiple iterations, per-iteration stiffness <1 = softer cloth)
+    const tearMul = this.tearMul;
+    const constraints = this.constraints;
+    const iterations = CFG.iterations;
+    const stiff = CFG.stiffness;
+    for (let iter = 0; iter < iterations; iter++) {
+      const last = iter === iterations - 1;
+      for (let k = 0, n = constraints.length; k < n; k++) {
+        const c = constraints[k];
+        if (!c.active) continue;
+        const dx = c.p2.x - c.p1.x;
+        const dy = c.p2.y - c.p1.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 1e-6) continue;
+        const diff = (d - c.restLength) / d;
+        if (last) {
+          c.strain = (d - c.restLength) / c.restLength;
+          // Tear test — only on the final iteration
+          if (c.strain > tearMul - 1) {
+            c.active = false;
+            this.tornCount++;
+            continue;
+          }
+        }
+        const ox = dx * 0.5 * diff * stiff;
+        const oy = dy * 0.5 * diff * stiff;
+        const p1p = c.p1.pinned;
+        const p2p = c.p2.pinned;
+        if (p1p && p2p) continue;
+        if (!p1p && !p2p) {
+          c.p1.x += ox;
+          c.p1.y += oy;
+          c.p2.x -= ox;
+          c.p2.y -= oy;
+        } else if (!p1p) {
+          c.p1.x += ox * 2;
+          c.p1.y += oy * 2;
+        } else {
+          c.p2.x -= ox * 2;
+          c.p2.y -= oy * 2;
+        }
+      }
+    }
+  }
+}
+
+/* =====================================================================
+   Wind scaling (driven by UI slider)
+   ===================================================================== */
+
+let windScale = 0.90;
+
+/* =====================================================================
+   Mouse interaction
+   ===================================================================== */
+
+const mouse = {
+  x: 0, y: 0,
+  down: false,
+  grabbed: null,
+};
+
+function pickPoint(mx, my) {
+  let best = null;
+  let bestD = CFG.mouseRadius * CFG.mouseRadius;
+  for (let j = 0; j < CFG.rows; j++) {
+    const row = cloth.points[j];
+    for (let i = 0; i < CFG.cols; i++) {
+      const p = row[i];
+      const dx = p.x - mx;
+      const dy = p.y - my;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD) {
+        bestD = d2;
+        best = p;
+      }
+    }
+  }
+  return best;
+}
+
+function eventToCanvas(e) {
+  if (e.touches && e.touches.length) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function onPointerDown(e) {
+  const { x, y } = eventToCanvas(e);
+  mouse.x = x; mouse.y = y;
+  mouse.down = true;
+  mouse.grabbed = pickPoint(x, y);
+  if (mouse.grabbed && mouse.grabbed.pinned) {
+    mouse.grabbed._wasPinned = true;
+    mouse.grabbed.pinned = false;
+  }
+}
+function onPointerMove(e) {
+  const { x, y } = eventToCanvas(e);
+  mouse.x = x; mouse.y = y;
+}
+function onPointerUp() {
+  if (mouse.grabbed && mouse.grabbed._wasPinned) {
+    mouse.grabbed.pinned = true;
+    delete mouse.grabbed._wasPinned;
+  }
+  mouse.down = false;
+  mouse.grabbed = null;
+}
+
+canvas.addEventListener('mousedown', onPointerDown);
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerUp);
+canvas.addEventListener('mouseleave', onPointerUp);
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); }, { passive: false });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); onPointerMove(e); }, { passive: false });
+canvas.addEventListener('touchend', (e) => { e.preventDefault(); onPointerUp(e); }, { passive: false });
+
+/* =====================================================================
+   Velvet rendering
+   ---------------------------------------------------------------------
+   Per-quad lighting model:
+     - Ambient red base
+     - Diffuse Lambertian (light direction · normal)
+     - Anisotropic sheen (peak at grazing angle — velvet's hallmark)
+     - Back-light brightening (cloth catches light from "behind" too)
+   Plus deterministic per-quad noise for fiber/fuzz variation.
+   ===================================================================== */
+
+const lightDir = (() => {
+  const a = CFG.lightAngle;
+  return { x: Math.cos(a), y: Math.sin(a) };
+})();
+
+// Deterministic per-quad noise (so it doesn't shimmer between frames)
+function quadNoise(i, j) {
+  const s = Math.sin(i * 12.9898 + j * 78.233 + 37.0) * 43758.5453;
+  return (s - Math.floor(s)) - 0.5;  // -0.5 to 0.5
+}
+
+function shadeQuad(p1, p2, p3, p4, i, j) {
+  // Edge vectors
+  const e1x = p2.x - p1.x, e1y = p2.y - p1.y;
+  const e2x = p4.x - p1.x, e2y = p4.y - p1.y;
+  // Z-component of cross product — sign tells us front/back of fold
+  const nz = e1x * e2y - e1y * e2x;
+  // Average normal across all four corners (smooths quads into a single surface)
+  const mid1x = (p1.x + p2.x) * 0.5, mid1y = (p1.y + p2.y) * 0.5;
+  const mid2x = (p3.x + p4.x) * 0.5, mid2y = (p3.y + p4.y) * 0.5;
+  const sx = mid2x - mid1x, sy = mid2y - mid1y;
+  const nx = -sy, ny = sx;
+  const nLen = Math.hypot(nx, ny) || 1;
+  const nXn = nx / nLen;
+  const nYn = ny / nLen;
+
+  const NdotL = nXn * lightDir.x + nYn * lightDir.y;
+  const frontFacing = nz > 0;
+
+  // Velvet BRDF components
+  //   ambient:    dark base (always present)
+  //   diffuse:    classic Lambert (front-facing folds only)
+  //   sheen:      anisotropic peak at grazing angle (velvet's signature)
+  //   backLit:    fold reversals pick up light through fibers
+  //   rim:        bright edge where surface curls away from light
+  const ambient = 0.16;
+  const diffuse = Math.max(0, NdotL) * 0.55;
+  const absN = Math.abs(NdotL);
+  const sheen = Math.exp(-absN * absN * 2.0) * 0.95;
+  const backLit = (frontFacing ? Math.max(0, -NdotL) * 0.32 : 0);
+  const rim = Math.exp(-absN * absN * 6.5) * 0.42;
+  let intensity = ambient + diffuse + sheen + backLit + rim;
+
+  // Subtle per-quad noise (low to avoid banding)
+  const n = quadNoise(i, j);
+  intensity += n * 0.03;
+
+  intensity = Math.max(0.12, Math.min(1.65, intensity));
+
+  // Velvet red palette — deep wine to bright crimson
+  // Slight non-linear curve to emphasise reds
+  const t = intensity;
+  const r = Math.min(255, Math.floor(Math.pow(t, 0.9) * 230));
+  const g = Math.min(255, Math.floor(Math.pow(t, 1.4) * 38 + (n > 0 ? n * 7 : 0)));
+  const b = Math.min(255, Math.floor(Math.pow(t, 1.5) * 32 + (n > 0 ? n * 5 : 0)));
+
+  return [r, g, b, NdotL];
+}
+
+// Deterministic value-noise (used for velvet fuzz texture)
+function vhash(x, y) {
+  let h = x * 374761393 + y * 668265263;
+  h = (h ^ (h >> 13)) * 1274126177;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+}
+
+let napPattern = null;
+function buildNapPattern() {
+  const SIZE = 96;
+  const c = document.createElement('canvas');
+  c.width = c.height = SIZE;
+  const cc = c.getContext('2d');
+  // Mid-grey base — needed for 'overlay' mode to actually produce visible highlights/shadows
+  cc.fillStyle = 'rgb(128, 128, 128)';
+  cc.fillRect(0, 0, SIZE, SIZE);
+  // Pure isotropic noise — high-contrast so overlay mode produces visible velvet pile effect
+  const id = cc.getImageData(0, 0, SIZE, SIZE);
+  const d = id.data;
+  for (let y = 0; y < SIZE; y++) {
+    const rowOffset = y * SIZE * 4;
+    for (let x = 0; x < SIZE; x++) {
+      const i = rowOffset + x * 4;
+      // Three octaves of value-noise for rich organic texture
+      const n1 = (vhash(x, y) - 0.5) * 80;
+      const n2 = (vhash((x >> 1) + 17, (y >> 1) + 31) - 0.5) * 40;
+      const n3 = (vhash((x >> 2) + 5, (y >> 2) + 91) - 0.5) * 20;
+      const v = n1 + n2 + n3;
+      d[i]   = Math.max(0, Math.min(255, 128 + v));
+      d[i+1] = Math.max(0, Math.min(255, 128 + v * 0.40));
+      d[i+2] = Math.max(0, Math.min(255, 128 + v * 0.36));
+    }
+  }
+  cc.putImageData(id, 0, 0);
+  return c;
+}
+
+function applyVelvetNap() {
+  if (!napPattern) napPattern = buildNapPattern();
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = ctx.createPattern(napPattern, 'repeat');
+  // Build a single path that covers the union of all quad areas
+  ctx.beginPath();
+  for (let j = 0; j < CFG.rows - 1; j++) {
+    const row = cloth.points[j];
+    const next = cloth.points[j + 1];
+    for (let i = 0; i < CFG.cols - 1; i++) {
+      const p1 = row[i], p2 = row[i + 1], p3 = next[i + 1], p4 = next[i];
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.lineTo(p4.x, p4.y);
+      ctx.closePath();
+    }
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCloth() {
+  // Pass 1: filled quads with solid per-quad color (lighting model captures folds/sheen)
+  for (let j = 0; j < CFG.rows - 1; j++) {
+    const row = cloth.points[j];
+    const next = cloth.points[j + 1];
+    for (let i = 0; i < CFG.cols - 1; i++) {
+      const p1 = row[i];
+      const p2 = row[i + 1];
+      const p3 = next[i + 1];
+      const p4 = next[i];
+
+      const [r, g, b] = shadeQuad(p1, p2, p3, p4, i, j);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.lineTo(p4.x, p4.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Pass 1.5: Velvet nap overlay — draw fine horizontal fibres across the cloth
+  // (clipped to cloth outline) for the characteristic fuzzy/pile appearance
+  if (CFG.renderVelvetNoise) {
+    applyVelvetNap();
+  }
+
+  // Pass 2: highlight near-tear constraints (visual feedback before break)
+  if (CFG.renderStress) {
+    const stress = cloth.tearMul - 1;
+    ctx.lineCap = 'round';
+    for (let k = 0, n = cloth.constraints.length; k < n; k++) {
+      const c = cloth.constraints[k];
+      if (!c.active) continue;
+      if (c.strain > stress * 0.55) {
+        const t = Math.min(1, c.strain / stress);
+        ctx.strokeStyle = `rgba(255, 110, 110, ${t * 0.7})`;
+        ctx.lineWidth = 0.5 + t * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(c.p1.x, c.p1.y);
+        ctx.lineTo(c.p2.x, c.p2.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Pass 3: pinned-point indicators (removed — caused visible scalloping artifact)
+// Pins are not drawn; cloth top edge stays clean
+
+  // Pass 4: grabbed point highlight
+  if (mouse.grabbed) {
+    const p = mouse.grabbed;
+    // Glow
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 14);
+    grd.addColorStop(0, 'rgba(255, 240, 220, 0.9)');
+    grd.addColorStop(0.4, 'rgba(255, 180, 140, 0.4)');
+    grd.addColorStop(1, 'rgba(255, 100, 80, 0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+    ctx.fill();
+    // Core
+    ctx.fillStyle = 'rgba(255, 250, 240, 0.95)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pass 5: cursor ring (shows mouse position even when not over a point)
+  if (mouse.down) {
+    ctx.strokeStyle = 'rgba(255, 200, 180, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, CFG.mouseRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+/* =====================================================================
+   Main loop
+   ===================================================================== */
+
+let cloth;
+let lastT = 0;
+let fpsCounter = 0;
+let fpsLast = 0;
+
+function loop(timestamp) {
+  const t = timestamp * 0.001;
+  if (lastT === 0) lastT = t;
+  let dt = t - lastT;
+  lastT = t;
+  if (dt > CFG.maxDelta) dt = CFG.maxDelta;
+
+  // Physics substepping — better stability with large dt
+  const sub = CFG.substeps;
+  const subDt = dt / sub;
+  for (let s = 0; s < sub; s++) {
+    cloth.step(subDt, t, mouse);
+  }
+
+  // Clear (background already on canvas via CSS — paint over with dark for safety)
+  ctx.fillStyle = '#0a0202';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle vignette
+  const vg = ctx.createRadialGradient(W * 0.5, H * 0.5, Math.min(W, H) * 0.2, W * 0.5, H * 0.5, Math.max(W, H) * 0.8);
+  vg.addColorStop(0, 'rgba(20, 8, 8, 0)');
+  vg.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Render cloth
+  drawCloth();
+
+  // FPS / stats — throttled
+  fpsCounter++;
+  if (t - fpsLast > 0.4) {
+    const fps = Math.round(fpsCounter / (t - fpsLast));
+    fpsCounter = 0;
+    fpsLast = t;
+    document.getElementById('statFps').textContent = fps;
+    document.getElementById('statPoints').textContent = CFG.cols * CFG.rows;
+    document.getElementById('statConstraints').textContent = cloth.constraints.length;
+    document.getElementById('statTorn').textContent = cloth.tornCount;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+/* =====================================================================
+   UI controls
+   ===================================================================== */
+
+function bindSlider(id, valueId, suffix, onChange) {
+  const el = document.getElementById(id);
+  const val = document.getElementById(valueId);
+  const fmt = suffix;
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    val.textContent = fmt ? v + fmt : v.toString();
+    onChange(v);
+  });
+}
+
+function setupControls() {
+  bindSlider('windSlider', 'windValue', '', (v) => { windScale = v / 100; });
+  bindSlider('gravitySlider', 'gravityValue', '', (v) => {
+    // 0-200 slider mapped to 0-1800 px/s² (gravity × 9)
+    CFG.gravity = v * 9;
+    document.getElementById('gravityValue').textContent = (v / 100).toFixed(1) + 'g';
+  });
+  bindSlider('tearSlider', 'tearValue', '%', (v) => { cloth.tearMul = v / 100; });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    cloth = new Cloth();
+    cloth.perturb(8);
+  });
+  document.getElementById('unpinBtn').addEventListener('click', () => {
+    for (let j = 0; j < CFG.rows; j++) {
+      const row = cloth.points[j];
+      for (let i = 0; i < CFG.cols; i++) {
+        row[i].pinned = false;
+        row[i]._wasPinned = false;
+      }
+    }
+  });
+  document.getElementById('repinBtn').addEventListener('click', () => {
+    const totalW = (CFG.cols - 1) * CFG.spacing;
+    const startX = Math.round((W - totalW) / 2);
+    const startY = 80;
+    for (let i = 0; i < CFG.cols; i++) {
+      const p = cloth.points[0][i];
+      p.x = startX + i * CFG.spacing;
+      p.y = startY;
+      p.px = p.x;
+      p.py = p.y;
+      p.pinned = true;
+      p._wasPinned = false;
+    }
+  });
+
+  // Initial slider labels
+  document.getElementById('gravityValue').textContent =
+    (parseFloat(document.getElementById('gravitySlider').value) / 100).toFixed(1) + 'g';
+}
+
+/* =====================================================================
+   Boot
+   ===================================================================== */
+
+cloth = new Cloth();
+cloth.perturb(8);
+setupControls();
+
+// Hide boot overlay
+requestAnimationFrame(() => {
+  const boot = document.getElementById('boot');
+  boot.classList.add('hidden');
+  setTimeout(() => boot.remove(), 600);
+});
+
+// Start loop
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
