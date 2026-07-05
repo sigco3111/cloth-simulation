@@ -10,20 +10,28 @@ HTML5 Canvas + Verlet Integration 알고리즘으로 구현된 물리적 천 시
 
 ## 🎬 라이브 데모 (Live Demo)
 
-> **👉 곧 공개됩니다 (Work in progress)** — OpenCode에서 `MiniMax-M3` 모델이 작업 중
+> **✅ 완료 (Ready)** — `index.html`을 브라우저에서 열면 바로 실행됩니다
 
 | | |
 |---|---|
-| ![Status](https://img.shields.io/badge/Status-In_Development-F59E0B?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
+| ![Status](https://img.shields.io/badge/Status-Ready-10B981?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
 ---
 
-## 🎮 빠른 사용법 (예정)
+## 🎮 빠른 사용법
 1. 페이지 열기 — 붉은 벨벳 천이 펄럭이며 표시됨
 2. **마우스 드래그** — 천의 임의 지점 잡아당기기
 3. **세게 당기기** — constraint 임계값 초과 시 천이 찢어짐
 4. 천이 자유낙하 + 바람 영향으로 자연스럽게 펄럭이는 모습 감상
+
+### UI 컨트롤
+- **Wind** 슬라이더 — 바람 세기 (0–100%)
+- **Gravity** 슬라이더 — 중력 강도 (0.0g–2.0g)
+- **Tear** 슬라이더 — 찢어지는 임계값 (% of rest length)
+- **Drop** — 모든 pin 해제, 천을 자유낙하
+- **Re-Pin** — 상단을 다시 고정
+- **Reset** — 천 재생성
 
 ---
 
@@ -48,16 +56,20 @@ Implementation Advice: Use HTML5 Canvas. Implement Verlet Integration for the ph
 
 ---
 
-## 🛠️ 기술 스택 (예정)
+## 🛠️ 기술 스택
 
-- **렌더링** — HTML5 Canvas 2D Context (`fillRect` + imageData pixel manipulation)
-- **물리 엔진** — Verlet Integration
-  - **Points** — 각 천의 격자점 위치, 이전 위치, 누적 힘
-  - **Constraints** — 인접 점 사이 거리 제약 (stretch/tear)
-  - **Integration** — 위치 = 2×현재 - 이전 + 가속 (velocity-implicit)
-- **마우스 인터랙션** — `mousedown`/`mousemove`/`mouseup` + ray pick
-- **벨벳 질감** — 그라데이션 shading + subtle noise per pixel
-- **번들** — 모든 의존성을 단일 `index.html`에 임베드
+- **렌더링** — HTML5 Canvas 2D Context (per-quad anisotropic BRDF + ImageData-based velvet nap overlay)
+- **물리 엔진** — Verlet Integration (Jakobsen-style constraint relaxation)
+  - **Points** — 32×42 격자점, 각 (x, y, px, py, ax, ay, pinned, mass)
+  - **Structural Constraints** — 수평/수직 인접점 (rest length = spacing)
+  - **Shear Constraints** — 대각선 인접점 (rest length = spacing × √2)
+  - **Integration** — `new = pos + (pos − prev) × damping + accel × dt²`
+  - **Stiffness** — 4 iterations × 0.75 per iteration (~98% enforced)
+- **마우스 인터랙션** — `mousedown`/`mousemove`/`mouseup` + nearest-point pick + positional snap
+- **벨벳 질감** — anisotropic BRDF (ambient + diffuse + sheen + backlit + rim) + procedural noise overlay
+- **바람** — 시간/공간 이중 sin 패턴 + 방향 반전 + 위치 기반 gust
+- **중력** — 900 px/s² (조정 가능)
+- **번들** — 모든 의존성을 단일 `index.html`에 임베드 (0 deps)
 
 ---
 

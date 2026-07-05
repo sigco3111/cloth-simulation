@@ -10,20 +10,28 @@ A physical cloth simulation rendered with HTML5 Canvas + Verlet Integration. Gra
 
 ## 🎬 Live Demo
 
-> **👉 Coming soon (Work in progress)** — `MiniMax-M3` is working on it via OpenCode
+> **✅ Ready** — open `index.html` in any modern browser
 
 | | |
 |---|---|
-| ![Status](https://img.shields.io/badge/Status-In_Development-F59E0B?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
+| ![Status](https://img.shields.io/badge/Status-Ready-10B981?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
 ---
 
-## 🎮 Quick Controls (planned)
-1. Open the page — red velvet cloth displayed, naturally fluttering
-2. **Mouse drag** — grab any point on the cloth, stretch it
-3. **Pull hard** — past the constraint tear threshold, cloth rips
-4. Watch gravity + wind flutter the remaining cloth naturally
+## 🎮 Quick Controls
+1. Open the page — red velvet cloth appears and naturally flutters in the wind
+2. **Mouse drag** — grab any point on the cloth and pull it
+3. **Pull hard** — when strain exceeds the tear threshold, constraints break and the cloth rips
+4. The torn cloth falls freely while wind + gravity keep the rest of it fluttering naturally
+
+### UI Controls
+- **Wind** slider — wind force (0–100%)
+- **Gravity** slider — gravity strength (0.0g–2.0g)
+- **Tear** slider — tearing threshold (% of rest length)
+- **Drop** — unpin everything; the cloth falls freely
+- **Re-Pin** — re-anchor the top row
+- **Reset** — recreate the cloth
 
 ---
 
@@ -48,16 +56,19 @@ Implementation Advice: Use HTML5 Canvas. Implement Verlet Integration for the ph
 
 ---
 
-## 🛠️ Tech Stack (planned)
-
-- **Rendering** — HTML5 Canvas 2D Context (`fillRect` + imageData pixel shading)
-- **Physics engine** — Verlet Integration
-  - **Points** — grid positions, previous positions, accumulated force
-  - **Constraints** — distance constraints between adjacent points (stretch/tear)
-  - **Integration** — position = 2×current - previous + acceleration (velocity-implicit)
-- **Mouse interaction** — `mousedown`/`mousemove`/`mouseup` + ray pick
-- **Velvet shading** — gradient + subtle noise per pixel for fabric depth
-- **Bundle** — all dependencies embedded in single `index.html`
+## 🛠️ Tech Stack
+- **Rendering** — HTML5 Canvas 2D Context (per-quad anisotropic BRDF + ImageData-based velvet nap overlay)
+- **Physics engine** — Verlet Integration (Jakobsen-style constraint relaxation)
+  - **Points** — 32×42 grid, each with (x, y, px, py, ax, ay, pinned, mass)
+  - **Structural constraints** — horizontal + vertical neighbours (rest length = spacing)
+  - **Shear constraints** — diagonal neighbours (rest length = spacing × √2)
+  - **Integration** — `new = pos + (pos − prev) × damping + accel × dt²`
+  - **Stiffness** — 4 iterations × 0.75 per iteration (~98% enforced)
+- **Mouse interaction** — `mousedown`/`mousemove`/`mouseup` + nearest-point pick + positional snap
+- **Velvet shading** — anisotropic BRDF (ambient + diffuse + sheen + backlit + rim) + procedural noise overlay
+- **Wind** — dual spatio-temporal sin pattern + direction reversal + position-based gusts
+- **Gravity** — 900 px/s² (adjustable)
+- **Bundle** — all dependencies embedded in single `index.html` (zero deps)
 
 ---
 
