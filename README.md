@@ -10,12 +10,12 @@ HTML5 Canvas + Verlet Integration 알고리즘으로 구현된 물리적 천 시
 
 ## 🎬 라이브 데모 (Live Demo)
 
-> **👉 [https://cloth-simulation-delta.vercel.app/](https://cloth-simulation-delta.vercel.app/)** — 브라우저에서 바로 실행 (60fps, 데스크톱 권장)
+> **👉 [https://sigco3111.github.io/cloth-simulation/](https://sigco3111.github.io/cloth-simulation/)** — 브라우저에서 바로 실행 (60fps, 데스크톱 권장)
 
 | | |
 |---|---|
 | ![Status](https://img.shields.io/badge/Status-Live-22C55E?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
-| ![Live](https://img.shields.io/badge/Live-Demo-7C3AED?style=for-the-badge&logo=vercel&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fcloth--simulation-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/cloth-simulation) |
+| ![Live](https://img.shields.io/badge/Live-Demo-222222?style=for-the-badge&logo=githubpages&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fcloth--simulation-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/cloth-simulation) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
 ### 🎮 빠른 사용법
@@ -65,7 +65,7 @@ To "tear" the cloth, check if the distance between two points in a constraint ex
 
 ## 🚀 실행 방법 (Quick Start)
 
-### 방법 1: 라이브 데모 (Vercel) — 가장 간단
+### 방법 1: 라이브 데모 (GitHub Pages) — 가장 간단
 위 Live Demo 링크 클릭 → 별도 설치 없이 바로 확인 가능합니다.
 
 ### 방법 2: 그냥 브라우저로 열기

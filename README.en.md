@@ -10,12 +10,12 @@ A physical cloth simulation rendered with HTML5 Canvas + Verlet Integration. A 3
 
 ## 🎬 Live Demo
 
-> **👉 [https://cloth-simulation-delta.vercel.app/](https://cloth-simulation-delta.vercel.app/)** — open in any modern browser (60fps, desktop recommended)
+> **👉 [https://sigco3111.github.io/cloth-simulation/](https://sigco3111.github.io/cloth-simulation/)** — open in any modern browser (60fps, desktop recommended)
 
 | | |
 |---|---|
 | ![Status](https://img.shields.io/badge/Status-Live-22C55E?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Canvas_+_Verlet-FF6B6B?style=flat-square) |
-| ![Live](https://img.shields.io/badge/Live-Demo-7C3AED?style=for-the-badge&logo=vercel&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fcloth--simulation-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/cloth-simulation) |
+| ![Live](https://img.shields.io/badge/Live-Demo-222222?style=for-the-badge&logo=githubpages&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Fcloth--simulation-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/cloth-simulation) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
 ### 🎮 Quick controls
@@ -65,7 +65,7 @@ To "tear" the cloth, check if the distance between two points in a constraint ex
 
 ## 🚀 Quick Start
 
-### Method 1: Live demo (Vercel) — easiest
+### Method 1: Live demo (GitHub Pages) — easiest
 Click the Live Demo link above → runs without any install or clone.
 
 ### Method 2: Open in browser directly
